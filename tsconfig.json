@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+        "module": "nodenext", // Modern Node.js module system
+        "moduleResolution": "nodenext",
+        "noImplicitAny": true,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "sourceMap": true,
+        "outDir": "dist" // Use outDir instead of outFile
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "**/*.spec.ts"
+    ]
+}
