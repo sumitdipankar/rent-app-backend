@@ -2,6 +2,8 @@ import express, { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import logger from '../../../logger'
+import ResponseHelper from '../../../helpers/responseHelper';
 
 const prisma = new PrismaClient();
 
@@ -27,17 +29,24 @@ const register = async (request: Request, response: Response) => {
             },
         });
 
-        return response.status(201).json({
-            message: 'User registered successfully',
-            user: {
-                id: newUser.id,
-                name: newUser.name,
-                email: newUser.email,
-                role: role
-            }
-        });
+        logger.info('New user registered: ID=%d, Email=%s, Role=%s', newUser.id, newUser.email, role);
+        // return response.status(201).json({
+        //     message: 'User registered successfully',
+        //     user: {
+        //         id: newUser.id,
+        //         name: newUser.name,
+        //         email: newUser.email,
+        //         role: role
+        //     }
+        // });
+        return ResponseHelper.sendResponse(
+            response,
+            newUser,
+            'User registered successfully',
+            201
+        );
     } catch (error) {
-        console.error('Register Error:', error);
+        logger.error('Register Error: %o', error);
         return response.status(500).json({ message: 'Internal Server Error' });
     }
 };
@@ -74,21 +83,25 @@ const login = async (request: Request, response: Response) => {
             permissions
         }, process.env.JWT_SECRET, { expiresIn: '1d' });
 
-        return response.status(200).json({
-            success: true,
-            status: 200,
-            message: 'Login successful',
-            token,
-            user: {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                role: user.role.name,
-                permissions
-            }
-        });
+        logger.info('User logged in: ID=%d, Email=%s', user.id, user.email);
+
+        return ResponseHelper.sendResponse(
+            response,
+            {
+                token,
+                user: {
+                    id: user.id,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role.name,
+                    permissions
+                }
+            },
+            'User logged in successfully',
+            200
+        );
     } catch (error) {
-        console.error('Login Error:', error);
+        logger.error('Login Error: %o', error);
         return response.status(500).json({ message: 'Internal Server Error' });
     }
 };

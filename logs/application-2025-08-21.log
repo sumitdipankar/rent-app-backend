@@ -1,0 +1,5 @@
+{"level":"info","message":"User logged in: ID=2, Email=test@admin.com","service":"my-node-app","timestamp":"2025-08-21 21:34:47"}
+{"level":"info","message":"User logged in: ID=2, Email=test@admin.com","service":"my-node-app","timestamp":"2025-08-21 21:35:44"}
+{"level":"info","message":"User logged in: ID=2, Email=test@admin.com","service":"my-node-app","timestamp":"2025-08-21 23:36:20"}
+{"level":"info","message":"User logged in: ID=2, Email=test@admin.com","service":"my-node-app","timestamp":"2025-08-21 23:38:56"}
+{"level":"info","message":"User logged in: ID=2, Email=test@admin.com","service":"my-node-app","timestamp":"2025-08-21 23:43:37"}

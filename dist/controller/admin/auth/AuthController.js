@@ -6,6 +6,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const client_1 = require("@prisma/client");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const logger_1 = __importDefault(require("../../../logger"));
+const responseHelper_1 = __importDefault(require("../../../helpers/responseHelper"));
 const prisma = new client_1.PrismaClient();
 const register = async (request, response) => {
     const { name, email, password, role } = request.body;
@@ -25,18 +27,11 @@ const register = async (request, response) => {
                 role_id: userRole.id,
             },
         });
-        return response.status(201).json({
-            message: 'User registered successfully',
-            user: {
-                id: newUser.id,
-                name: newUser.name,
-                email: newUser.email,
-                role: role
-            }
-        });
+        logger_1.default.info('New user registered: ID=%d, Email=%s, Role=%s', newUser.id, newUser.email, role);
+        return responseHelper_1.default.sendResponse(response, newUser, 'User registered successfully', 201);
     }
     catch (error) {
-        console.error('Register Error:', error);
+        logger_1.default.error('Register Error: %o', error);
         return response.status(500).json({ message: 'Internal Server Error' });
     }
 };
@@ -68,10 +63,8 @@ const login = async (request, response) => {
             role: user.role.name,
             permissions
         }, process.env.JWT_SECRET, { expiresIn: '1d' });
-        return response.status(200).json({
-            success: true,
-            status: 200,
-            message: 'Login successful',
+        logger_1.default.info('User logged in: ID=%d, Email=%s', user.id, user.email);
+        return responseHelper_1.default.sendResponse(response, {
             token,
             user: {
                 id: user.id,
@@ -80,10 +73,10 @@ const login = async (request, response) => {
                 role: user.role.name,
                 permissions
             }
-        });
+        }, 'User logged in successfully', 200);
     }
     catch (error) {
-        console.error('Login Error:', error);
+        logger_1.default.error('Login Error: %o', error);
         return response.status(500).json({ message: 'Internal Server Error' });
     }
 };
