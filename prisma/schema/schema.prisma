@@ -8,15 +8,18 @@ datasource db {
 }
 
 model User {
-  id         Int      @id @default(autoincrement())
-  name       String
-  email      String   @unique
-  password   String
-  status     Boolean  @default(true)
-  role_id    Int
-  role       Role     @relation(fields: [role_id], references: [id])
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id             Int      @id @default(autoincrement())
+  name           String
+  email          String   @unique
+  password       String
+  status         Boolean  @default(true)
+  role_id        Int
+  role           Role     @relation(fields: [role_id], references: [id])
+  otp            String?
+  otp_expires_at String?
+  otp_verified   Boolean  @default(false)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
 }
 
 model Role {

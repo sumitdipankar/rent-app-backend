@@ -5,6 +5,7 @@ import jwt from 'jsonwebtoken';
 import logger from '../../../logger'
 import ResponseHelper from '../../../helpers/responseHelper';
 import { sendMail } from '../../../services/mailService';
+import { sendOtpMail } from '../../../services/otpMailService';
 
 const prisma = new PrismaClient();
 
@@ -92,12 +93,12 @@ const login = async (request: Request, response: Response) => {
         logger.info('User logged in: ID=%d, Email=%s', user.id, user.email);
 
         await sendMail({
-            to: email,
+            to: "sumit.dipanker@payomatix.com",
             subject: "Login Successful 🎉",
             template: "welcome",
             context: { name: user.name },
         });
-        logger.info('Login email sent to: %s', email);
+        logger.info('Login email sent to: %s', "sumit.dipanker@payomatix.com");
         return ResponseHelper.sendResponse(
             response,
             {
@@ -119,7 +120,76 @@ const login = async (request: Request, response: Response) => {
     }
 };
 
+
+// Generate random 6-digit OTP
+function generateOtp(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// Step 1: Request OTP
+export const requestOtp = async (request: Request, response: Response) => {
+    const { email } = request.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) return response.status(404).json({ message: "User not found" });
+
+    const otp = generateOtp();
+    const expiry = new Date(Date.now() + 5 * 60 * 1000); // 5 min
+
+    await prisma.user.update({
+        where: { email },
+        data: { otp, otp_expires_at: expiry.toISOString() },
+    });
+
+    await sendOtpMail(email, otp);
+
+    response.json({ message: "OTP sent to your email" });
+};
+
+// 2. Verify OTP
+export const verifyOtp = async (request: Request, response: Response) => {
+    const { email, otp } = request.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user || !user.otp || !user.otp_expires_at)
+        return response.status(400).json({ message: "Invalid request" });
+
+    if (user.otp !== otp) return response.status(400).json({ message: "Invalid OTP" });
+
+    if (user.otp_expires_at < new Date().toISOString())
+        return response.status(400).json({ message: "OTP expired" });
+
+    // Mark as verified
+    await prisma.user.update({
+        where: { email },
+        data: { otp_verified: true },
+    });
+
+    response.json({ message: "OTP verified successfully" });
+};
+
+// 3. Reset Password
+export const resetPassword = async (req: Request, res: Response) => {
+    const { email, newPassword } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.otp_verified) return res.status(400).json({ message: "OTP not verified" });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.user.update({
+        where: { email },
+        data: { password: hashedPassword, otp: null, otp_expires_at: null, otp_verified: false },
+    });
+
+    res.json({ message: "Password reset successful" });
+};
+
 module.exports = {
     register,
-    login
+    login,
+    requestOtp,
+    verifyOtp,
+    resetPassword
 };

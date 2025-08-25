@@ -3,12 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.resetPassword = exports.verifyOtp = exports.requestOtp = void 0;
 const client_1 = require("@prisma/client");
 const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const logger_1 = __importDefault(require("../../../logger"));
 const responseHelper_1 = __importDefault(require("../../../helpers/responseHelper"));
 const mailService_1 = require("../../../services/mailService");
+const otpMailService_1 = require("../../../services/otpMailService");
 const prisma = new client_1.PrismaClient();
 const register = async (request, response) => {
     const { name, email, password, role } = request.body;
@@ -76,12 +78,12 @@ const login = async (request, response) => {
         }, process.env.JWT_SECRET, { expiresIn: '1d' });
         logger_1.default.info('User logged in: ID=%d, Email=%s', user.id, user.email);
         await (0, mailService_1.sendMail)({
-            to: email,
+            to: "sumit.dipanker@payomatix.com",
             subject: "Login Successful 🎉",
             template: "welcome",
             context: { name: user.name },
         });
-        logger_1.default.info('Login email sent to: %s', email);
+        logger_1.default.info('Login email sent to: %s', "sumit.dipanker@payomatix.com");
         return responseHelper_1.default.sendResponse(response, {
             token,
             user: {
@@ -98,8 +100,60 @@ const login = async (request, response) => {
         return response.status(500).json({ message: 'Internal Server Error' });
     }
 };
+function generateOtp() {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+}
+const requestOtp = async (request, response) => {
+    const { email } = request.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user)
+        return response.status(404).json({ message: "User not found" });
+    const otp = generateOtp();
+    const expiry = new Date(Date.now() + 5 * 60 * 1000);
+    await prisma.user.update({
+        where: { email },
+        data: { otp, otp_expires_at: expiry.toISOString() },
+    });
+    await (0, otpMailService_1.sendOtpMail)(email, otp);
+    response.json({ message: "OTP sent to your email" });
+};
+exports.requestOtp = requestOtp;
+const verifyOtp = async (request, response) => {
+    const { email, otp } = request.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user || !user.otp || !user.otp_expires_at)
+        return response.status(400).json({ message: "Invalid request" });
+    if (user.otp !== otp)
+        return response.status(400).json({ message: "Invalid OTP" });
+    if (user.otp_expires_at < new Date().toISOString())
+        return response.status(400).json({ message: "OTP expired" });
+    await prisma.user.update({
+        where: { email },
+        data: { otp_verified: true },
+    });
+    response.json({ message: "OTP verified successfully" });
+};
+exports.verifyOtp = verifyOtp;
+const resetPassword = async (req, res) => {
+    const { email, newPassword } = req.body;
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user)
+        return res.status(404).json({ message: "User not found" });
+    if (!user.otp_verified)
+        return res.status(400).json({ message: "OTP not verified" });
+    const hashedPassword = await bcrypt_1.default.hash(newPassword, 10);
+    await prisma.user.update({
+        where: { email },
+        data: { password: hashedPassword, otp: null, otp_expires_at: null, otp_verified: false },
+    });
+    res.json({ message: "Password reset successful" });
+};
+exports.resetPassword = resetPassword;
 module.exports = {
     register,
-    login
+    login,
+    requestOtp: exports.requestOtp,
+    verifyOtp: exports.verifyOtp,
+    resetPassword: exports.resetPassword
 };
 //# sourceMappingURL=AuthController.js.map
