@@ -8,6 +8,7 @@ const bcrypt_1 = __importDefault(require("bcrypt"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const logger_1 = __importDefault(require("../../../logger"));
 const responseHelper_1 = __importDefault(require("../../../helpers/responseHelper"));
+const mailService_1 = require("../../../services/mailService");
 const prisma = new client_1.PrismaClient();
 const register = async (request, response) => {
     const { name, email, password, role } = request.body;
@@ -28,6 +29,12 @@ const register = async (request, response) => {
             },
         });
         logger_1.default.info('New user registered: ID=%d, Email=%s, Role=%s', newUser.id, newUser.email, role);
+        await (0, mailService_1.sendMail)({
+            to: email,
+            subject: "Registered Successful 🎉",
+            template: "welcome",
+            context: { name: newUser.name },
+        });
         return responseHelper_1.default.sendResponse(response, newUser, 'User registered successfully', 201);
     }
     catch (error) {
@@ -52,11 +59,15 @@ const login = async (request, response) => {
                 }
             }
         });
-        if (!user)
+        if (!user) {
+            logger_1.default.warn('Login failed for email: %s - User not found', email);
             return response.status(404).json({ message: 'User not found' });
+        }
         const isPasswordValid = await bcrypt_1.default.compare(password, user.password);
-        if (!isPasswordValid)
+        if (!isPasswordValid) {
+            logger_1.default.warn('Login failed for email: %s - Invalid password', email);
             return response.status(401).json({ message: 'Invalid credentials' });
+        }
         const permissions = user.role.permissions.map(p => p.permission.name);
         const token = jsonwebtoken_1.default.sign({
             userId: user.id,
@@ -64,6 +75,13 @@ const login = async (request, response) => {
             permissions
         }, process.env.JWT_SECRET, { expiresIn: '1d' });
         logger_1.default.info('User logged in: ID=%d, Email=%s', user.id, user.email);
+        await (0, mailService_1.sendMail)({
+            to: email,
+            subject: "Login Successful 🎉",
+            template: "welcome",
+            context: { name: user.name },
+        });
+        logger_1.default.info('Login email sent to: %s', email);
         return responseHelper_1.default.sendResponse(response, {
             token,
             user: {
