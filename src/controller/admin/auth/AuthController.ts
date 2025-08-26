@@ -182,7 +182,13 @@ export const resetPassword = async (req: Request, res: Response) => {
         where: { email },
         data: { password: hashedPassword, otp: null, otp_expires_at: null, otp_verified: false },
     });
-
+    sendMail({
+        to: email,
+        subject: "Password Reset Successful",
+        template: "password-reset",
+        context: { name: user.name },
+    });
+    logger.info('Password reset successful for email: %s', email);
     res.json({ message: "Password reset successful" });
 };
 

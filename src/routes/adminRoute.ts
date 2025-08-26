@@ -1,9 +1,10 @@
 import express from 'express';
 const adminRouter = express.Router();
 
-import authRouter from '../controller/admin/auth/AuthRoute';
+import authMiddleware from "../middlewares/authMiddleware"
 
-adminRouter.use('/admin', authRouter);
+adminRouter.use(authMiddleware); //Protected Routes
+
 
 
 export default adminRouter;

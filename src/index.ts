@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 7000
 
 app.use(express.json());
 
+app.use('/api', authRouter);
 app.use("/api", adminRouter);
 
 app.get("/", (request: Request, response: Response) => {
